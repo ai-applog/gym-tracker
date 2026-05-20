@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>筋トレ記録</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, sans-serif; background: #f5f5f5; color: #222; min-height: 100vh; }
+  header { background: #2c2c2a; color: #fff; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+  header h1 { font-size: 17px; font-weight: 600; }
+  header span { font-size: 13px; color: #aaa; }
+  nav { display: flex; background: #fff; border-bottom: 1px solid #e5e5e5; }
+  nav button { flex: 1; padding: 12px 0; font-size: 14px; border: none; background: none; cursor: pointer; color: #888; border-bottom: 2px solid transparent; transition: .15s; }
+  nav button.active { color: #2c2c2a; border-bottom-color: #2c2c2a; font-weight: 600; }
+  .page { display: none; padding: 16px; }
+  .page.active { display: block; }
+  .card { background: #fff; border-radius: 12px; padding: 16px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.06); }
+  .card h2 { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: #444; }
+  label { font-size: 13px; color: #666; display: block; margin-bottom: 4px; margin-top: 10px; }
+  label:first-of-type { margin-top: 0; }
+  input, select { width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; appearance: none; background: #fafafa; }
+  input:focus, select:focus { outline: none; border-color: #2c2c2a; background: #fff; }
+  .row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+  .row input { text-align: center; }
+  .btn { width: 100%; padding: 13px; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 12px; }
+  .btn-primary { background: #2c2c2a; color: #fff; }
+  .btn-primary:active { opacity: .8; }
+  .btn-danger { background: none; border: 1px solid #e24b4a; color: #e24b4a; }
+  .log-item { border-bottom: 1px solid #f0f0f0; padding: 10px 0; display: flex; justify-content: space-between; align-items: flex-start; }
+  .log-item:last-child { border-bottom: none; }
+  .log-info .name { font-size: 15px; font-weight: 600; }
+  .log-info .detail { font-size: 13px; color: #888; margin-top: 2px; }
+  .log-vol { font-size: 13px; font-weight: 600; color: #444; text-align: right; }
+  .log-vol span { display: block; font-size: 11px; color: #aaa; font-weight: 400; }
+  .empty { text-align: center; color: #aaa; font-size: 14px; padding: 32px 0; }
+  .date-header { font-size: 12px; color: #888; font-weight: 600; padding: 8px 0 4px; letter-spacing: .5px; }
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card { background: #f5f5f5; border-radius: 10px; padding: 14px; text-align: center; }
+  .stat-card .val { font-size: 26px; font-weight: 700; color: #2c2c2a; }
+  .stat-card .lbl { font-size: 12px; color: #888; margin-top: 2px; }
+  .set-row { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 6px; align-items: center; margin-bottom: 6px; }
+  .set-row input { padding: 8px; font-size: 14px; }
+  .del-btn { background: none; border: none; font-size: 20px; color: #ccc; cursor: pointer; padding: 4px 6px; line-height: 1; }
+  .del-btn:active { color: #e24b4a; }
+  .add-set-btn { width: 100%; padding: 9px; border: 1px dashed #ccc; border-radius: 8px; background: none; color: #888; font-size: 14px; cursor: pointer; margin-top: 4px; }
+  .add-set-btn:active { background: #f5f5f5; }
+  .set-header { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 6px; margin-bottom: 4px; }
+  .set-header span { font-size: 11px; color: #aaa; text-align: center; }
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #2c2c2a; color: #fff; padding: 10px 20px; border-radius: 20px; font-size: 14px; opacity: 0; transition: opacity .3s; pointer-events: none; z-index: 99; white-space: nowrap; }
+  .toast.show { opacity: 1; }
+  .filter-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .filter-row select { font-size: 13px; padding: 8px 10px; }
+  .badge { display: inline-block; font-size: 11px; background: #f0f0f0; color: #666; border-radius: 6px; padding: 2px 7px; margin-left: 4px; vertical-align: middle; }
+  .pr-badge { background: #faeeda; color: #854f0b; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🏋️ トレーニング記録</h1>
+  <span id="today-str"></span>
+</header>
+
+<nav>
+  <button class="active" onclick="switchTab('record')">記録</button>
+  <button onclick="switchTab('history')">履歴</button>
+  <button onclick="switchTab('stats')">統計</button>
+</nav>
+
+<div id="page-record" class="page active">
+  <div class="card">
+    <h2>種目を選択</h2>
+    <label>種目</label>
+    <select id="exercise-select">
+      <option value="">-- 選択してください --</option>
+      <optgroup label="下半身">
+        <option>スクワット</option>
+        <option>レッグプレス</option>
+        <option>ルーマニアンデッドリフト</option>
+        <option>レッグカール</option>
+        <option>レッグエクステンション</option>
+        <option>ヒップスラスト</option>
+        <option>カーフレイズ</option>
+        <option>ブルガリアンスクワット</option>
+      </optgroup>
+      <optgroup label="上半身（引く）">
+        <option>懸垂</option>
+        <option>ラットプルダウン</option>
+        <option>ケーブルロウ</option>
+        <option>ダンベルロウ</option>
+      </optgroup>
+      <optgroup label="上半身（押す）">
+        <option>ショルダープレス</option>
+        <option>サイドレイズ</option>
+        <option>トライセプスプッシュダウン</option>
+        <option>アームカール</option>
+      </optgroup>
+      <optgroup label="体幹">
+        <option>プランク</option>
+        <option>クランチ</option>
+        <option>ケーブルクランチ</option>
+      </optgroup>
+      <optgroup label="有酸素">
+        <option>トレッドミル</option>
+        <option>バイク</option>
+        <option>クロストレーナー</option>
+      </optgroup>
+    </select>
+    <label style="margin-top:10px;">または自由入力</label>
+    <input type="text" id="exercise-custom" placeholder="例：ヒップアブダクション">
+  </div>
+
+  <div class="card">
+    <h2>セット入力</h2>
+    <div class="set-header">
+      <span>セット</span><span>重量 (kg)</span><span>回数 / 秒</span><span></span>
+    </div>
+    <div id="sets-container"></div>
+    <button class="add-set-btn" onclick="addSet()">＋ セット追加</button>
+  </div>
+
+  <div class="card">
+    <label>メモ（任意）</label>
+    <input type="text" id="memo" placeholder="例：フォーム意識、胸まで下げた">
+    <button class="btn btn-primary" onclick="saveRecord()">保存する</button>
+  </div>
+</div>
+
+<div id="page-history" class="page">
+  <div class="filter-row">
+    <select id="filter-exercise" onchange="renderHistory()" style="flex:1;">
+      <option value="">すべての種目</option>
+    </select>
+  </div>
+  <div id="history-list"></div>
+</div>
+
+<div id="page-stats" class="page">
+  <div class="card">
+    <h2>全体サマリー</h2>
+    <div class="stats-grid" id="summary-grid"></div>
+  </div>
+  <div class="card" id="pr-card">
+    <h2>種目別 ベスト記録（1RM換算）</h2>
+    <div id="pr-list"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const TODAY = new Date();
+document.getElementById('today-str').textContent = TODAY.toLocaleDateString('ja-JP', {month:'long', day:'numeric', weekday:'short'});
+
+let sets = [];
+
+function switchTab(tab) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + tab).classList.add('active');
+  event.target.classList.add('active');
+  if (tab === 'history') { populateFilter(); renderHistory(); }
+  if (tab === 'stats') renderStats();
+}
+
+function addSet(weight='', reps='') {
+  const idx = sets.length;
+  sets.push({ weight, reps });
+  const c = document.getElementById('sets-container');
+  const div = document.createElement('div');
+  div.className = 'set-row';
+  div.dataset.idx = idx;
+  div.innerHTML = `<div style="font-size:13px;color:#aaa;text-align:center;padding-top:10px;">${idx+1}</div>
+    <input type="number" inputmode="decimal" min="0" step="0.5" placeholder="20" value="${weight}" oninput="sets[${idx}].weight=this.value">
+    <input type="number" inputmode="numeric" min="1" placeholder="10" value="${reps}" oninput="sets[${idx}].reps=this.value">
+    <button class="del-btn" onclick="removeSet(${idx})">×</button>`;
+  c.appendChild(div);
+}
+
+function removeSet(idx) {
+  sets.splice(idx, 1);
+  document.getElementById('sets-container').innerHTML = '';
+  const tmp = [...sets];
+  sets = [];
+  tmp.forEach(s => addSet(s.weight, s.reps));
+}
+
+function getExerciseName() {
+  const custom = document.getElementById('exercise-custom').value.trim();
+  const sel = document.getElementById('exercise-select').value;
+  return custom || sel;
+}
+
+function saveRecord() {
+  const name = getExerciseName();
+  if (!name) { showToast('種目を選択または入力してください'); return; }
+  const validSets = sets.filter(s => s.weight !== '' && s.reps !== '');
+  if (validSets.length === 0) { showToast('セットを1つ以上入力してください'); return; }
+  const memo = document.getElementById('memo').value.trim();
+  const record = {
+    id: Date.now(),
+    date: TODAY.toISOString().slice(0,10),
+    exercise: name,
+    sets: validSets.map(s => ({ weight: parseFloat(s.weight)||0, reps: parseInt(s.reps)||0 })),
+    memo,
+    volume: validSets.reduce((sum, s) => sum + (parseFloat(s.weight)||0) * (parseInt(s.reps)||0), 0)
+  };
+  const logs = getLogs();
+  logs.unshift(record);
+  localStorage.setItem('gym_logs', JSON.stringify(logs));
+  showToast('✓ 保存しました！');
+  resetForm();
+}
+
+function resetForm() {
+  document.getElementById('exercise-select').value = '';
+  document.getElementById('exercise-custom').value = '';
+  document.getElementById('memo').value = '';
+  sets = [];
+  document.getElementById('sets-container').innerHTML = '';
+  addSet();
+}
+
+function getLogs() {
+  try { return JSON.parse(localStorage.getItem('gym_logs')) || []; } catch { return []; }
+}
+
+function calc1RM(weight, reps) {
+  if (reps === 1) return weight;
+  return Math.round(weight * (1 + reps / 30));
+}
+
+function populateFilter() {
+  const logs = getLogs();
+  const names = [...new Set(logs.map(l => l.exercise))];
+  const sel = document.getElementById('filter-exercise');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">すべての種目</option>';
+  names.forEach(n => { const o = document.createElement('option'); o.value = n; o.textContent = n; sel.appendChild(o); });
+  sel.value = cur;
+}
+
+function renderHistory() {
+  const logs = getLogs();
+  const filter = document.getElementById('filter-exercise').value;
+  const filtered = filter ? logs.filter(l => l.exercise === filter) : logs;
+  const container = document.getElementById('history-list');
+  if (filtered.length === 0) { container.innerHTML = '<div class="empty">記録がありません</div>'; return; }
+  let html = '';
+  let lastDate = '';
+  filtered.forEach(log => {
+    if (log.date !== lastDate) {
+      const d = new Date(log.date);
+      html += `<div class="date-header">${d.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})}</div>`;
+      lastDate = log.date;
+    }
+    const maxRM = Math.max(...log.sets.map(s => calc1RM(s.weight, s.reps)));
+    html += `<div class="card" style="margin-bottom:8px;">
+      <div class="log-item">
+        <div class="log-info">
+          <div class="name">${log.exercise}</div>
+          <div class="detail">${log.sets.map((s,i) => `${i+1}. ${s.weight}kg × ${s.reps}`).join(' / ')}</div>
+          ${log.memo ? `<div class="detail" style="color:#aaa;margin-top:2px;">📝 ${log.memo}</div>` : ''}
+        </div>
+        <div class="log-vol">
+          Vol: ${Math.round(log.volume).toLocaleString()}<span>1RM推定 ${maxRM}kg</span>
+        </div>
+      </div>
+      <button class="btn btn-danger" style="margin-top:8px;padding:8px;" onclick="deleteLog(${log.id})">削除</button>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+function deleteLog(id) {
+  if (!confirm('この記録を削除しますか？')) return;
+  const logs = getLogs().filter(l => l.id !== id);
+  localStorage.setItem('gym_logs', JSON.stringify(logs));
+  populateFilter();
+  renderHistory();
+  showToast('削除しました');
+}
+
+function renderStats() {
+  const logs = getLogs();
+  const grid = document.getElementById('summary-grid');
+  const totalSessions = [...new Set(logs.map(l => l.date))].length;
+  const totalSets = logs.reduce((s, l) => s + l.sets.length, 0);
+  const totalVol = logs.reduce((s, l) => s + l.volume, 0);
+  const thisWeek = logs.filter(l => {
+    const d = new Date(l.date);
+    const diff = (TODAY - d) / 86400000;
+    return diff < 7;
+  }).length;
+  grid.innerHTML = `
+    <div class="stat-card"><div class="val">${totalSessions}</div><div class="lbl">総セッション数</div></div>
+    <div class="stat-card"><div class="val">${thisWeek}</div><div class="lbl">今週の記録数</div></div>
+    <div class="stat-card"><div class="val">${totalSets}</div><div class="lbl">総セット数</div></div>
+    <div class="stat-card"><div class="val">${Math.round(totalVol/1000).toLocaleString()}t</div><div class="lbl">累計ボリューム</div></div>`;
+
+  const prMap = {};
+  logs.forEach(log => {
+    log.sets.forEach(s => {
+      const rm = calc1RM(s.weight, s.reps);
+      if (!prMap[log.exercise] || rm > prMap[log.exercise].rm) {
+        prMap[log.exercise] = { rm, weight: s.weight, reps: s.reps, date: log.date };
+      }
+    });
+  });
+  const prList = document.getElementById('pr-list');
+  const entries = Object.entries(prMap).sort((a,b) => b[1].rm - a[1].rm);
+  if (entries.length === 0) { prList.innerHTML = '<div class="empty">まだ記録がありません</div>'; return; }
+  prList.innerHTML = entries.map(([name, pr]) =>
+    `<div class="log-item">
+      <div class="log-info"><div class="name">${name}</div><div class="detail">${pr.weight}kg × ${pr.reps}回 (${pr.date})</div></div>
+      <div class="log-vol">${pr.rm}kg<span class="badge pr-badge">推定1RM</span></div>
+    </div>`
+  ).join('');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+addSet();
+</script>
+</body>
+</html>
